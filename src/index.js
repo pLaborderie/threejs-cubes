@@ -1,85 +1,85 @@
 import * as THREE from 'three';
+import { GUI } from 'dat.gui';
+import AxisGridHelper from './AxisGridHelper';
 
 function main() {
   const canvas = document.querySelector('#c');
   const renderer = new THREE.WebGLRenderer({canvas});
+  const gui = new GUI();
 
   const fov = 40;
   const aspect = 2;  // the canvas default
   const near = 0.1;
   const far = 1000;
   const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-  camera.position.z = 120;
+  camera.position.set(0, 50, 0);
+  camera.up.set(0, 0, 1);
+  camera.lookAt(0, 0, 0);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xAAAAAA);
-
-  const objects = [];
-  const spread = 15;
-
-  function addObject(x, y, obj) {
-    obj.position.x = x * spread;
-    obj.position.y = y * spread;
-    scene.add(obj);
-    objects.push(obj);
-  }
-
-  function createMaterial() {
-    const material = new THREE.MeshPhongMaterial({ side: THREE.DoubleSide });
-    const hue = Math.random();
-    const saturation = 1;
-    const luminance = .5;
-    material.color.setHSL(hue, saturation, luminance);
-    return material;
-  }
-
-  function addSolidGeometry(x, y, geometry) {
-    const mesh = new THREE.Mesh(geometry, createMaterial());
-    addObject(x, y, mesh);
-  }
-
-  {
-    const width = 8;
-    const height = 8;
-    const depth = 8;
-    addSolidGeometry(-2, -2, new THREE.BoxBufferGeometry(width, height, depth));
-  }
 
   {
     const color = 0xFFFFFF;
-    const intensity = 1;
-    const light = new THREE.DirectionalLight(color, intensity);
-    light.position.set(-1, 2, 4);
+    const intensity = 3;
+    const light = new THREE.PointLight(color, intensity);
     scene.add(light);
   }
 
-  const boxWidth = 1;
-  const boxHeight = 1;
-  const boxDepth = 1;
-  const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+  // an array of objects who's rotation to update
+  const objects = [];
 
-  function makeInstance(geometry, color, x) {
-    const material = new THREE.MeshPhongMaterial({ color });
+  const radius = 1;
+  const widthSegments = 6;
+  const heightSegments = 6;
+  const sphereGeometry = new THREE.SphereBufferGeometry(
+    radius, widthSegments, heightSegments);
 
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
+  const solarSystem = new THREE.Object3D();
+  scene.add(solarSystem);
+  objects.push(solarSystem);
 
-    cube.position.x = x;
+  const sunMaterial = new THREE.MeshPhongMaterial({ emissive: 0xFFFF00 });
+  const sunMesh = new THREE.Mesh(sphereGeometry, sunMaterial);
+  sunMesh.scale.set(5, 5, 5);
+  solarSystem.add(sunMesh);
+  objects.push(sunMesh);
 
-    return cube;
+  const earthOrbit = new THREE.Object3D();
+  earthOrbit.position.x = 10;
+  solarSystem.add(earthOrbit);
+  objects.push(earthOrbit);
+
+  const earthMaterial = new THREE.MeshPhongMaterial({ color: 0x2233FF, emissive: 0x112244 });
+  const earthMesh = new THREE.Mesh(sphereGeometry, earthMaterial);
+  earthOrbit.add(earthMesh);
+  objects.push(earthMesh);
+
+  const moonOrbit = new THREE.Object3D();
+  moonOrbit.position.x = 2;
+  earthOrbit.add(moonOrbit);
+
+  const moonMaterial = new THREE.MeshPhongMaterial({ color: 0x888888, emissive: 0x222222 });
+  const moonMesh = new THREE.Mesh(sphereGeometry, moonMaterial);
+  moonMesh.scale.set(.5, .5, .5);
+  moonOrbit.add(moonMesh);
+  objects.push(moonMesh);
+
+  function makeAxisGrid(node, label, units) {
+    const helper = new AxisGridHelper(node, units);
+    gui.add(helper, 'visible').name(label);
   }
-
-  const cubes = [
-    makeInstance(geometry, 0x44aa88,  0),
-    makeInstance(geometry, 0x8844aa, -2),
-    makeInstance(geometry, 0xaa8844,  2),
-  ];
+   
+  makeAxisGrid(solarSystem, 'solarSystem', 25);
+  makeAxisGrid(sunMesh, 'sunMesh');
+  makeAxisGrid(earthOrbit, 'earthOrbit');
+  makeAxisGrid(earthMesh, 'earthMesh');
+  makeAxisGrid(moonOrbit, 'moonOrbit');
+  makeAxisGrid(moonMesh, 'moonMesh');
 
   function resizeRendererToDisplaySize(renderer) {
     const canvas = renderer.domElement;
-    const pixelRatio = window.devicePixelRatio;
-    const width = canvas.clientWidth * pixelRatio | 0;
-    const height = canvas.clientHeight * pixelRatio | 0;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
     const needResize = canvas.width !== width || canvas.height !== height;
     if (needResize) {
       renderer.setSize(width, height, false);
@@ -96,11 +96,8 @@ function main() {
       camera.updateProjectionMatrix();
     }
 
-    cubes.forEach((cube, ndx) => {
-      const speed = 1 + ndx * .1;
-      const rot = time * speed;
-      cube.rotation.x = rot;
-      cube.rotation.y = rot;
+    objects.forEach((obj) => {
+      obj.rotation.y = time;
     });
 
     renderer.render(scene, camera);
